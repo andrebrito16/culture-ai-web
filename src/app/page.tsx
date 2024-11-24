@@ -195,15 +195,19 @@ export default function Chat() {
                       <DialogTrigger asChild>
                         <Button className="max-w-[40%]" variant="outline">Visualizar obra em 3D</Button>
                       </DialogTrigger>
-                      <DialogContent className="sm:max-w-[425px] max-w-3/4 h-3/4">
+                      <DialogContent style={{
+                        maxWidth: '95vw',
+                        maxHeight: '100vh',
+                      }} className="flex flex-col sm:max-w-[425px] max-w-3/4 h-3/4">
                         <DialogHeader className="px-0 py-0">
                           <DialogTitle>Obra em 3D</DialogTitle>
                           <DialogDescription>
                             Você pode interagir com essa obra em 3D.
                           </DialogDescription>
                         </DialogHeader>
-                        <div className="flex">
+                        <div className="flex h-full">
                           <iframe
+                          
                             src={m.URL3D}
                             className="w-full h-full"
                             title="3D model"
