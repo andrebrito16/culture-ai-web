@@ -1,12 +1,22 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { Send } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { Send } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 
 type Message = {
   type: 'ai' | 'human';
@@ -14,6 +24,7 @@ type Message = {
   additional_kwargs: Record<string, unknown>;
   example?: boolean;
   isMarkdown?: boolean;
+  URL3D?: string;
 }
 
 export default function Chat() {
@@ -31,7 +42,6 @@ export default function Chat() {
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Scroll to bottom when messages change
     if (scrollAreaRef.current) {
       const scrollArea = scrollAreaRef.current
       scrollArea.scrollTop = scrollArea.scrollHeight
@@ -64,10 +74,10 @@ export default function Chat() {
           ...messages,
           newMessage
         ]),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       setMessages(prev => [...prev, {
@@ -76,52 +86,73 @@ export default function Chat() {
         additional_kwargs: {},
         example: false,
         isMarkdown: true
-      }])
+      }]);
 
-      const reader = response.body?.getReader()
-      if (!reader) throw new Error('Failed to get response reader')
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('Failed to get response reader');
 
-      let accumulatedContent = ''
+      let accumulatedContent = '';
+      const decoder = new TextDecoder();
 
       while (true) {
-        const { done, value } = await reader.read()
-        
-        if (done) break
+        const { done, value } = await reader.read();
+        if (done) break;
 
-        const decoder = new TextDecoder()
-        const text = decoder.decode(value)
-        
-        const cleanedText = text
-          .split('\n')
-          .map(line => line.replace(/^data: /, ''))
-          .filter(line => line.length > 0 && line !== ' ')
-          .join('')
+        const text = decoder.decode(value);
+        const lines = text.split('\n');
 
-        accumulatedContent += cleanedText
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(5).trim());
 
-        setMessages(prev => [
-          ...prev.slice(0, -1),
-          {
-            type: 'ai',
-            content: accumulatedContent,
-            additional_kwargs: {},
-            example: false,
-            isMarkdown: true
+              if (data.type === 'url') {
+                setMessages(prev => [
+                  ...prev.slice(0, -1),
+                  {
+                    ...prev[prev.length - 1],
+                    URL3D: data.content
+                  }
+                ]);
+              } else if (data.type === 'message') {
+                accumulatedContent += data.content;
+
+                setMessages(prev => [
+                  ...prev.slice(0, -1),
+                  {
+                    ...prev[prev.length - 1],
+                    content: accumulatedContent
+                  }
+                ]);
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e);
+              const cleanedLine = line.replace(/^data: /, '').trim();
+              if (cleanedLine) {
+                accumulatedContent += cleanedLine;
+                setMessages(prev => [
+                  ...prev.slice(0, -1),
+                  {
+                    ...prev[prev.length - 1],
+                    content: accumulatedContent
+                  }
+                ]);
+              }
+            }
           }
-        ])
+        }
       }
-
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Error:', error);
       setMessages(prev => [...prev, {
         type: 'ai',
         content: 'Sorry, there was an error processing your request.',
         additional_kwargs: {},
         example: false,
         isMarkdown: false
-      }])
+      }]);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -134,25 +165,60 @@ export default function Chat() {
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-4">
           {messages.map((m, index) => (
-            <div
-              key={index}
-              className={`flex ${m.type === 'human' ? 'justify-end' : 'justify-start'}`}
-            >
+            <div key={index}>
               <div
-                className={`max-w-[80%] p-3 rounded-lg ${
-                  m.type === 'human'
+                key={index}
+                className={`flex ${m.type === 'human' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] p-3 rounded-lg ${m.type === 'human'
                     ? 'bg-blue-500 text-white dark:bg-blue-600'
                     : 'bg-gray-200 text-black dark:bg-gray-700 dark:text-white'
-                }`}
-              >
-                {m.isMarkdown ? (
-                  <ReactMarkdown className="prose dark:prose-invert max-w-none">
-                    {m.content}
-                  </ReactMarkdown>
-                ) : (
-                  m.content
-                )}
+                    }`}
+                >
+                  {m.isMarkdown ? (
+                    <ReactMarkdown className="prose dark:prose-invert max-w-none">
+                      {m.content}
+                    </ReactMarkdown>
+                  ) : (
+                    m.content
+                  )}
+
+                </div>
+
               </div>
+              {
+                m.URL3D && (
+                  <div className='flex flex-col gap-2 mt-2 ml-1'>
+                    <p className="font-thin max-w-[60%]">Oferecemos essa obra de maneira interativa em 3D, clique no botão abaixo para visualizar.</p>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button className="max-w-[40%]" variant="outline">Visualizar obra em 3D</Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[425px] max-w-3/4 h-3/4">
+                        <DialogHeader className="px-0 py-0">
+                          <DialogTitle>Obra em 3D</DialogTitle>
+                          <DialogDescription>
+                            Você pode interagir com essa obra em 3D.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="flex">
+                          <iframe
+                            src={m.URL3D}
+                            className="w-full h-full"
+                            title="3D model"
+                          />
+                        </div>
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <Button variant="outline">Close</Button>
+                          </DialogClose>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                )
+              }
             </div>
           ))}
         </div>
