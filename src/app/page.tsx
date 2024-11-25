@@ -159,7 +159,7 @@ export default function Chat() {
   return (
     <div className="flex flex-col h-screen max-w-3xl mx-auto">
       <header className="flex justify-between items-center p-4 border-b">
-        <h1 className="text-2xl font-bold">Firfingers Bot Cultural</h1>
+        <h1 className="text-2xl font-bold">Firefingers Bot Cultural</h1>
         <ThemeToggle />
       </header>
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
